@@ -1,10 +1,8 @@
 import express from 'express';
 import cors from 'cors';
-import helmet from 'helmet';
 import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { createClient } from '@supabase/supabase-js';
 
 // Import routes
 import authRoutes from './routes/auth.js';
@@ -25,27 +23,12 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-// Initialize Supabase
-export const supabase = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_KEY
-);
-
-// Middleware
-app.use(helmet());
-app.use(cors({
-  origin: '*', // Permitir qualquer origem para evitar problemas de CORS no deploy inicial
-  credentials: true
-}));
+// Configuração de CORS aberta
+app.use(cors({ origin: '*', credentials: true }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Health check
-app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() });
-});
-
-// Routes
+// API Endpoints
 app.use('/api/auth', authRoutes);
 app.use('/api/patients', patientsRoutes);
 app.use('/api/sessions', sessionsRoutes);
@@ -59,41 +42,21 @@ app.use('/api/groups', groupsRoutes);
 app.use('/api/history', historyRoutes);
 app.use('/api/trash', trashRoutes);
 
-// Error handling
-app.use((err, req, res, next) => {
-  console.error('Error:', err);
-  res.status(err.status || 500).json({
-    error: err.message || 'Internal server error'
-  });
+// SERVIR FRONTEND
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const publicPath = path.join(__dirname, '../public');
+
+app.use(express.static(publicPath));
+
+app.get('*', (req, res) => {
+  if (!req.path.startsWith('/api')) {
+    res.sendFile(path.join(publicPath, 'index.html'));
+  } else {
+    res.status(404).json({ error: 'API não encontrada' });
+  }
 });
 
-// Serve static files from frontend in production
-if (process.env.NODE_ENV === 'production') {
-  const __filename = fileURLToPath(import.meta.url);
-  const __dirname = path.dirname(__filename);
-  const frontendPath = path.join(__dirname, '../../frontend/dist');
-  
-  app.use(express.static(frontendPath));
-  
-  // Serve index.html for all non-API routes (SPA routing)
-  app.get('*', (req, res) => {
-    if (!req.path.startsWith('/api')) {
-      res.sendFile(path.join(frontendPath, 'index.html'));
-    } else {
-      res.status(404).json({ error: 'Route not found' });
-    }
-  });
-} else {
-  // 404 handler for development
-  app.use((req, res) => {
-    res.status(404).json({ error: 'Route not found' });
-  });
-}
-
-app.listen(PORT, () => {
-  console.log(`🚀 Server running on port ${PORT}`);
-  console.log(`📝 Environment: ${process.env.NODE_ENV || 'development'}`);
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`🚀 Servidor PSI rodando na porta ${PORT}`);
 });
-
-
-

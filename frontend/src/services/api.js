@@ -1,8 +1,15 @@
 import { supabase } from './supabase.js';
 
-const API_URL = import.meta.env.PROD 
-  ? '/api' 
-  : (import.meta.env.VITE_API_URL || 'http://localhost:3001/api');
+const getBaseURL = () => {
+  // Se estiver em produção (servido pelo backend), usa caminho relativo
+  if (import.meta.env.PROD) {
+    return '/api';
+  }
+  // Em desenvolvimento, usa o IP/localhost configurado
+  return import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+};
+
+const API_URL = getBaseURL();
 
 class ApiClient {
   constructor() {
@@ -30,7 +37,6 @@ class ApiClient {
       });
 
       if (response.status === 401) {
-        // Token expired, redirect to login
         window.location.hash = '#/login';
         throw new Error('Não autenticado');
       }
@@ -46,7 +52,6 @@ class ApiClient {
         throw new Error(errorMessage);
       }
 
-      // Handle empty responses
       const contentType = response.headers.get('content-type');
       if (contentType && contentType.includes('application/json')) {
         const text = await response.text();
@@ -60,7 +65,6 @@ class ApiClient {
     }
   }
 
-  // Generic CRUD methods
   async get(endpoint) {
     return this.request(endpoint, { method: 'GET' });
   }
@@ -85,6 +89,3 @@ class ApiClient {
 }
 
 export const api = new ApiClient();
-
-
-
