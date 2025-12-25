@@ -1,56 +1,19 @@
-import { DashboardModule } from './modules/dashboard/Dashboard.js';
-import { PatientsModule } from './modules/patients/PatientsModule.js';
-import { SessionsModule } from './modules/sessions/SessionsModule.js';
-import { GroupsModule } from './modules/groups/GroupsModule.js';
-import { EventsModule } from './modules/events/EventsModule.js';
-import { CalendarModule } from './modules/calendar/CalendarModule.js';
-import { AgendaModule } from './modules/agenda/AgendaModule.js';
-import { ReceivablesModule } from './modules/receivables/ReceivablesModule.js';
-import { InvoicingModule } from './modules/invoicing/InvoicingModule.js';
-import { ExpensesModule } from './modules/expenses/ExpensesModule.js';
-import { ReportsModule } from './modules/reports/ReportsModule.js';
-import { HistoryModule } from './modules/history/HistoryModule.js';
-import { PendenciesModule } from './modules/pendencies/PendenciesModule.js';
-import { SettingsModule } from './modules/settings/SettingsModule.js';
-import { LoginModule } from './modules/auth/Login.js';
-import { RegisterModule } from './modules/auth/Register.js';
 import { checkAuth } from './middleware/auth.js';
 
 export class Router {
-  constructor() {
-    this.routes = {
-      'login': () => new LoginModule(),
-      'register': () => new RegisterModule(),
-      'dashboard': () => new DashboardModule(),
-      'patients': () => new PatientsModule(),
-      'sessions': () => new SessionsModule(),
-      'groups': () => new GroupsModule(),
-      'events': () => new EventsModule(),
-      'calendar': () => new CalendarModule(),
-      'agenda': () => new AgendaModule(),
-      'receivables': () => new ReceivablesModule(),
-      'invoicing': () => new InvoicingModule(),
-      'expenses': () => new ExpensesModule(),
-      'reports': () => new ReportsModule(),
-      'history': () => new HistoryModule(),
-      'pendencies': () => new PendenciesModule(),
-      'settings': () => new SettingsModule()
-    };
+  constructor(routes, container) {
+    this.routes = routes;
+    this.container = container;
     this.currentModule = null;
-    this.container = document.getElementById('app-container');
-    
-    // If container doesn't exist, create it
-    if (!this.container) {
-      this.container = document.createElement('div');
-      this.container.id = 'app-container';
-      this.container.className = 'ml-64 mt-16 p-6';
-      const app = document.getElementById('app');
-      if (app) {
-        app.appendChild(this.container);
-      } else {
-        document.body.appendChild(this.container);
-      }
-    }
+
+    window.addEventListener('hashchange', () => {
+      this.navigate(window.location.hash.substring(2) || 'dashboard');
+    });
+  }
+
+  async init() {
+    const initialRoute = window.location.hash.substring(2) || 'dashboard';
+    await this.navigate(initialRoute);
   }
 
   async navigate(route) {
@@ -62,17 +25,22 @@ export class Router {
       this.currentModule.destroy();
     }
 
-    // Check authentication for protected routes
+    // BYPASS LOGIN PARA DEBUG: Comentamos a verificação de auth
+    /*
     if (path !== 'login' && path !== 'register') {
       const isAuthenticated = await checkAuth();
       if (!isAuthenticated) {
         window.location.hash = '#/login';
-        path = 'login';
-        params = [];
+        return;
       }
     }
+    */
 
-    // Get module factory
+    // Se o caminho for login ou vazio, vai pro dashboard
+    if (!path || path === 'login') {
+      path = 'dashboard';
+    }
+
     const moduleFactory = this.routes[path];
     
     if (!moduleFactory) {
@@ -80,12 +48,10 @@ export class Router {
       return this.navigate('dashboard');
     }
 
-    // Clear container
     if (this.container) {
       this.container.innerHTML = '';
     }
 
-    // Create and initialize new module
     try {
       this.currentModule = moduleFactory();
       
@@ -95,10 +61,8 @@ export class Router {
         await this.currentModule.render(this.container, ...params);
       }
       
-      // Update active nav item
       this.updateActiveNav(path);
       
-      // Update page title in header
       const header = window.app?.header;
       if (header && typeof header.setTitle === 'function') {
         const titles = {
@@ -120,32 +84,29 @@ export class Router {
         header.setTitle(titles[path] || 'Prontuário PSI');
       }
     } catch (error) {
-      console.error(`Error initializing module "${route}":`, error);
+      console.error('Error loading module:', error);
       if (this.container) {
         this.container.innerHTML = `
-          <div class="p-6">
-            <div class="bg-red-50 dark:bg-red-900 border border-red-200 dark:border-red-700 rounded-lg p-4">
-              <h2 class="text-red-800 dark:text-red-200 font-semibold mb-2">Erro ao carregar módulo</h2>
-              <p class="text-red-600 dark:text-red-300">${error.message || 'Erro desconhecido'}</p>
-              <p class="text-red-500 dark:text-red-400 text-sm mt-2">Verifique o console (F12) para mais detalhes.</p>
-            </div>
+          <div class="p-4 bg-red-50 text-red-600 rounded-lg">
+            <h2 class="font-bold">Erro ao carregar módulo</h2>
+            <p>${error.message}</p>
+            <button onclick="window.location.reload()" class="mt-2 text-sm underline">Tentar novamente</button>
           </div>
         `;
       }
     }
   }
 
-  updateActiveNav(route) {
-    // Remove active class from all nav items
-    document.querySelectorAll('.nav-item').forEach(el => {
-      el.classList.remove('bg-gray-100', 'dark:bg-gray-700', 'border-l-4', 'border-[var(--color-primary)]');
+  updateActiveNav(path) {
+    document.querySelectorAll('nav a').forEach(link => {
+      const href = link.getAttribute('href');
+      if (href === `#/${path}`) {
+        link.classList.add('bg-blue-50', 'text-blue-600');
+        link.classList.remove('text-gray-600');
+      } else {
+        link.classList.remove('bg-blue-50', 'text-blue-600');
+        link.classList.add('text-gray-600');
+      }
     });
-
-    // Add active class to current route
-    const activeBtn = document.querySelector(`[data-route="${route}"]`);
-    if (activeBtn) {
-      activeBtn.classList.add('bg-gray-100', 'dark:bg-gray-700', 'border-l-4', 'border-[var(--color-primary)]');
-    }
   }
 }
-
