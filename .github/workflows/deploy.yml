@@ -1,0 +1,115 @@
+name: Deploy to VPN Hostinger
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: |
+            frontend/package-lock.json
+            backend/package-lock.json
+
+      - name: Install frontend dependencies
+        run: |
+          cd frontend
+          npm ci
+
+      - name: Build frontend
+        run: |
+          cd frontend
+          npm run build
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+
+      - name: Install backend dependencies
+        run: |
+          cd backend
+          npm ci
+
+      - name: Create deployment package
+        run: |
+          mkdir -p deploy
+          cp -r frontend/dist deploy/frontend
+          cp -r backend deploy/backend
+          cp -r database deploy/database
+          cp -r scripts deploy/scripts
+          cp -r docs deploy/docs
+          cp package.json deploy/
+          cp README.md deploy/
+          tar -czf deploy.tar.gz deploy/
+
+      - name: Deploy to VPN server
+        uses: appleboy/scp-action@master
+        with:
+          host: ${{ secrets.VPN_HOST }}
+          username: ${{ secrets.VPN_USER }}
+          key: ${{ secrets.VPN_SSH_KEY }}
+          port: 22
+          source: "deploy.tar.gz"
+          target: "/tmp/"
+
+      - name: Extract and restart on server
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.VPN_HOST }}
+          username: ${{ secrets.VPN_USER }}
+          key: ${{ secrets.VPN_SSH_KEY }}
+          port: 22
+          script: |
+            cd /opt/prontuario-psi || mkdir -p /opt/prontuario-psi && cd /opt/prontuario-psi
+            
+            # Backup current version
+            if [ -d "current" ]; then
+              mv current "backup-$(date +%Y%m%d-%H%M%S)"
+            fi
+            
+            # Extract new version
+            tar -xzf /tmp/deploy.tar.gz -C /tmp/
+            mv /tmp/deploy current
+            
+            # Install backend dependencies
+            cd current/backend
+            npm ci --production
+            
+            # Copy environment file if exists
+            if [ -f /opt/prontuario-psi/.env ]; then
+              cp /opt/prontuario-psi/.env current/backend/.env
+            fi
+            
+            # Restart application with PM2
+            cd /opt/prontuario-psi/current/backend
+            pm2 restart prontuario-psi || pm2 start src/server.js --name prontuario-psi
+            
+            # Cleanup old backups (keep last 5)
+            cd /opt/prontuario-psi
+            ls -dt backup-* | tail -n +6 | xargs rm -rf
+            
+            # Cleanup temp file
+            rm -f /tmp/deploy.tar.gz
+
+      - name: Health check
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.VPN_HOST }}
+          username: ${{ secrets.VPN_USER }}
+          key: ${{ secrets.VPN_SSH_KEY }}
+          port: 22
+          script: |
+            sleep 5
+            pm2 status prontuario-psi
+            curl -f http://localhost:3001/api/health || exit 1

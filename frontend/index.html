@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="pt-BR" class="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Prontuário PSI - ERP para Psicologia</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Quill Editor CSS -->
+    <link href="https://cdn.quilljs.com/1.3.7/quill.snow.css" rel="stylesheet">
+    
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <style>
+        :root {
+            --color-primary: #3b82f6;
+            --color-secondary: #1e40af;
+            --color-accent: #60a5fa;
+            --color-bg: #f3f4f6;
+            --color-surface: #ffffff;
+            --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        }
+        
+        html.dark {
+            --color-bg: #111827;
+            --color-surface: #1f2937;
+        }
+        
+        body {
+            font-family: var(--font-family);
+            background-color: var(--color-bg);
+            color: #1f2937;
+            transition: background-color 0.3s ease, color 0.3s ease;
+        }
+        
+        html.dark body {
+            color: #f3f4f6;
+        }
+        
+        /* Ensure dark mode classes work properly */
+        .dark .bg-white {
+            background-color: #1f2937 !important;
+        }
+        
+        .dark .text-gray-800 {
+            color: #f3f4f6 !important;
+        }
+        
+        .dark .border-gray-200 {
+            border-color: #374151 !important;
+        }
+        
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: var(--color-primary); border-radius: 4px; }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <div id="sidebar"></div>
+        <div id="header"></div>
+        <div id="app-container" class="ml-64 mt-16 p-6 min-h-screen"></div>
+        <div id="loading" class="hidden"></div>
+    </div>
+    <script type="module" src="/src/main.js"></script>
+</body>
+</html>
+
