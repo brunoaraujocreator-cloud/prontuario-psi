@@ -1,99 +1,57 @@
 import express from 'express';
-import cors from 'cors';
-import helmet from 'helmet';
-import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { createClient } from '@supabase/supabase-js';
+import cors from 'cors';
+import dotenv from 'dotenv';
 
-// Import routes
+// Importação de TODAS as rotas do projeto
 import authRoutes from './routes/auth.js';
-import patientsRoutes from './routes/patients.js';
-import sessionsRoutes from './routes/sessions.js';
-import expensesRoutes from './routes/expenses.js';
-import receivablesRoutes from './routes/receivables.js';
-import invoicesRoutes from './routes/invoices.js';
-import reportsRoutes from './routes/reports.js';
-import pdfRoutes from './routes/pdf.js';
-import eventsRoutes from './routes/events.js';
-import groupsRoutes from './routes/groups.js';
+import patientRoutes from './routes/patients.js';
+import sessionRoutes from './routes/sessions.js';
+import groupRoutes from './routes/groups.js';
+import eventRoutes from './routes/events.js';
+import expenseRoutes from './routes/expenses.js';
+import receivableRoutes from './routes/receivables.js';
+import invoiceRoutes from './routes/invoices.js';
+import reportRoutes from './routes/reports.js';
 import historyRoutes from './routes/history.js';
 import trashRoutes from './routes/trash.js';
+import settingsRoutes from './routes/settings.js';
+import pdfRoutes from './routes/pdf.js';
 
 dotenv.config();
 
 const app = express();
-const PORT = process.env.PORT || 3001;
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-// Initialize Supabase
-export const supabase = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_KEY
-);
-
-// Middleware
-app.use(helmet());
-app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:3000',
-  credentials: true
-}));
+app.use(cors());
 app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
 
-// Health check
-app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() });
-});
-
-// Routes
+// Registro de todas as rotas da API
 app.use('/api/auth', authRoutes);
-app.use('/api/patients', patientsRoutes);
-app.use('/api/sessions', sessionsRoutes);
-app.use('/api/expenses', expensesRoutes);
-app.use('/api/receivables', receivablesRoutes);
-app.use('/api/invoices', invoicesRoutes);
-app.use('/api/reports', reportsRoutes);
-app.use('/api/generate-pdf', pdfRoutes);
-app.use('/api/events', eventsRoutes);
-app.use('/api/groups', groupsRoutes);
+app.use('/api/patients', patientRoutes);
+app.use('/api/sessions', sessionRoutes);
+app.use('/api/groups', groupRoutes);
+app.use('/api/events', eventRoutes);
+app.use('/api/expenses', expenseRoutes);
+app.use('/api/receivables', receivableRoutes);
+app.use('/api/invoices', invoiceRoutes);
+app.use('/api/reports', reportRoutes);
 app.use('/api/history', historyRoutes);
 app.use('/api/trash', trashRoutes);
+app.use('/api/settings', settingsRoutes);
+app.use('/api/pdf', pdfRoutes);
 
-// Error handling
-app.use((err, req, res, next) => {
-  console.error('Error:', err);
-  res.status(err.status || 500).json({
-    error: err.message || 'Internal server error'
-  });
+// SERVIR FRONTEND: O Backend entrega os arquivos da pasta 'public'
+const publicPath = path.join(__dirname, '../public');
+app.use(express.static(publicPath));
+
+// Rota para o SPA: Qualquer rota que não seja da API cai no index.html
+app.get('*', (req, res) => {
+  res.sendFile(path.join(publicPath, 'index.html'));
 });
 
-// Serve static files from frontend in production
-if (process.env.NODE_ENV === 'production') {
-  const __filename = fileURLToPath(import.meta.url);
-  const __dirname = path.dirname(__filename);
-  const frontendPath = path.join(__dirname, '../../frontend/dist');
-  
-  app.use(express.static(frontendPath));
-  
-  // Serve index.html for all non-API routes (SPA routing)
-  app.get('*', (req, res) => {
-    if (!req.path.startsWith('/api')) {
-      res.sendFile(path.join(frontendPath, 'index.html'));
-    } else {
-      res.status(404).json({ error: 'Route not found' });
-    }
-  });
-} else {
-  // 404 handler for development
-  app.use((req, res) => {
-    res.status(404).json({ error: 'Route not found' });
-  });
-}
-
-app.listen(PORT, () => {
-  console.log(`🚀 Server running on port ${PORT}`);
-  console.log(`📝 Environment: ${process.env.NODE_ENV || 'development'}`);
+const PORT = process.env.PORT || 3001;
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`Servidor PSI rodando na porta ${PORT}`);
 });
-
-
-
