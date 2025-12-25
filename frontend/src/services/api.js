@@ -1,15 +1,6 @@
 import { supabase } from './supabase.js';
 
-const getBaseURL = () => {
-  // Se estiver em produção (servido pelo backend), usa caminho relativo
-  if (import.meta.env.PROD) {
-    return '/api';
-  }
-  // Em desenvolvimento, usa o IP/localhost configurado
-  return import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
-};
-
-const API_URL = getBaseURL();
+const API_URL = '/api';
 
 class ApiClient {
   constructor() {
@@ -17,8 +8,12 @@ class ApiClient {
   }
 
   async getToken() {
-    const { data: { session } } = await supabase.auth.getSession();
-    return session?.access_token;
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      return session?.access_token;
+    } catch (e) {
+      return null;
+    }
   }
 
   async request(endpoint, options = {}) {
@@ -42,20 +37,13 @@ class ApiClient {
       }
 
       if (!response.ok) {
-        let errorMessage = 'Erro na requisição';
-        try {
-          const error = await response.json();
-          errorMessage = error.error || errorMessage;
-        } catch (e) {
-          errorMessage = `Erro ${response.status}: ${response.statusText}`;
-        }
-        throw new Error(errorMessage);
+        const error = await response.json().catch(() => ({}));
+        throw new Error(error.error || `Erro ${response.status}`);
       }
 
       const contentType = response.headers.get('content-type');
       if (contentType && contentType.includes('application/json')) {
-        const text = await response.text();
-        return text ? JSON.parse(text) : {};
+        return await response.json();
       }
       
       return {};
@@ -65,27 +53,10 @@ class ApiClient {
     }
   }
 
-  async get(endpoint) {
-    return this.request(endpoint, { method: 'GET' });
-  }
-
-  async post(endpoint, data) {
-    return this.request(endpoint, {
-      method: 'POST',
-      body: JSON.stringify(data)
-    });
-  }
-
-  async put(endpoint, data) {
-    return this.request(endpoint, {
-      method: 'PUT',
-      body: JSON.stringify(data)
-    });
-  }
-
-  async delete(endpoint) {
-    return this.request(endpoint, { method: 'DELETE' });
-  }
+  async get(endpoint) { return this.request(endpoint, { method: 'GET' }); }
+  async post(endpoint, data) { return this.request(endpoint, { method: 'POST', body: JSON.stringify(data) }); }
+  async put(endpoint, data) { return this.request(endpoint, { method: 'PUT', body: JSON.stringify(data) }); }
+  async delete(endpoint) { return this.request(endpoint, { method: 'DELETE' }); }
 }
 
 export const api = new ApiClient();
